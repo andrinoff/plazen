@@ -75,7 +75,7 @@ async function appendNotesUrlToReleaseBody(
     return existing;
   }
 
-  const notesMd = `# See full release notes: ${notesUrl}\n`;
+  const notesMd = `### See full release notes: [here](${notesUrl})\n`;
   const newBody = notesMd + currentBody;
 
   const patchUrl = `https://api.github.com/repos/${OWNER}/${REPO}/releases/${releaseId}`;
