@@ -554,22 +554,84 @@ export class SMTPClient {
     this.config = config;
   }
 
-  static fromEnv(): SMTPClient {
-    const config: SMTPConfig = {
-      host: process.env.SMTP_HOST || "smtp.gmail.com",
-      port: parseInt(process.env.SMTP_PORT || "587", 10),
-      secure: process.env.SMTP_SECURE === "true",
-      auth: {
-        user: process.env.SMTP_USER || "",
-        pass: process.env.SMTP_PASS || "",
-      },
-      from: {
-        name: process.env.SMTP_FROM_NAME || "Plazen",
-        email: process.env.SMTP_FROM_EMAIL || "",
-      },
-    };
+  static fromEnv(): SMTPClient | SMTPClient[] {
+    const host = process.env.SMTP_HOST || "smtp.gmail.com";
+    const port = parseInt(process.env.SMTP_PORT || "587", 10);
+    const secure = process.env.SMTP_SECURE === "true";
+    const fromName = process.env.SMTP_FROM_NAME || "Plazen";
+    const fromEmail = process.env.SMTP_FROM_EMAIL || "";
 
-    return new SMTPClient(config);
+    const accounts: { user: string; pass: string }[] = [];
+    const user1 = process.env.SMTP_USER_1 || process.env.SMTP_USER || "";
+    const pass1 = process.env.SMTP_PASS_1 || process.env.SMTP_PASS || "";
+    if (user1) {
+      accounts.push({ user: user1, pass: pass1 });
+    }
+
+    const user2 = process.env.SMTP_USER_2 || "";
+    const pass2 = process.env.SMTP_PASS_2 || "";
+    if (user2) {
+      accounts.push({ user: user2, pass: pass2 });
+    }
+
+    if (accounts.length === 0) {
+      const config: SMTPConfig = {
+        host,
+        port,
+        secure,
+        auth: {
+          user: process.env.SMTP_USER || "",
+          pass: process.env.SMTP_PASS || "",
+        },
+        from: {
+          name: fromName,
+          email: fromEmail,
+        },
+      };
+
+      return new SMTPClient(config);
+    }
+
+    // If only one account, return a single client for backward compatibility
+    if (accounts.length === 1) {
+      const config: SMTPConfig = {
+        host,
+        port,
+        secure,
+        auth: {
+          user: accounts[0].user,
+          pass: accounts[0].pass,
+        },
+        from: {
+          name: fromName,
+          email: fromEmail,
+        },
+      };
+      return new SMTPClient(config);
+    }
+
+    // Multiple accounts — return one client per account
+    return accounts.map((acct) => {
+      const config: SMTPConfig = {
+        host,
+        port,
+        secure,
+        auth: {
+          user: acct.user,
+          pass: acct.pass,
+        },
+        from: {
+          name: fromName,
+          email: fromEmail,
+        },
+      };
+      return new SMTPClient(config);
+    });
+  }
+
+  static fromEnvAll(): SMTPClient[] {
+    const clients = this.fromEnv();
+    return Array.isArray(clients) ? clients : [clients];
   }
 
   async send(message: EmailMessage): Promise<SendResult> {

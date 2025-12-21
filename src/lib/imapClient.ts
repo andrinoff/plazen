@@ -1003,17 +1003,116 @@ export class IMAPClient {
     this.config = config;
   }
 
-  static fromEnv(): IMAPClient {
+  static fromEnv(account?: string): IMAPClient {
+    if (account) {
+      return IMAPClient.fromEnvAccount(account);
+    }
+
+    const host = process.env.IMAP_HOST || process.env.SMTP_HOST || "";
+    const port = parseInt(process.env.IMAP_PORT || "993", 10);
+    const secure = process.env.IMAP_SECURE !== "false";
+
     const config: IMAPConfig = {
-      host: process.env.IMAP_HOST || process.env.SMTP_HOST || "",
-      port: parseInt(process.env.IMAP_PORT || "993", 10),
-      secure: process.env.IMAP_SECURE !== "false",
+      host,
+      port,
+      secure,
       auth: {
         user: process.env.IMAP_USER || process.env.SMTP_USER || "",
         pass: process.env.IMAP_PASS || process.env.SMTP_PASS || "",
       },
     };
+
     return new IMAPClient(config);
+  }
+
+  static fromEnvAccount(account: string): IMAPClient {
+    const suffix = `_${account.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
+
+    const host =
+      process.env[`IMAP_HOST${suffix}`] ||
+      process.env.IMAP_HOST ||
+      process.env.SMTP_HOST ||
+      "";
+    const port = parseInt(
+      process.env[`IMAP_PORT${suffix}`] || process.env.IMAP_PORT || "993",
+      10,
+    );
+    const secureEnv = process.env[`IMAP_SECURE${suffix}`];
+    const secure =
+      secureEnv !== undefined
+        ? secureEnv !== "false"
+        : process.env.IMAP_SECURE !== "false";
+
+    const user =
+      process.env[`IMAP_USER${suffix}`] ||
+      process.env.IMAP_USER ||
+      process.env.SMTP_USER ||
+      "";
+    const pass =
+      process.env[`IMAP_PASS${suffix}`] ||
+      process.env.IMAP_PASS ||
+      process.env.SMTP_PASS ||
+      "";
+
+    const config: IMAPConfig = {
+      host,
+      port,
+      secure,
+      auth: {
+        user,
+        pass,
+      },
+    };
+
+    return new IMAPClient(config);
+  }
+  static fromEnvAll(): IMAPClient[] {
+    const host = process.env.IMAP_HOST || process.env.SMTP_HOST || "";
+    const port = parseInt(process.env.IMAP_PORT || "993", 10);
+    const secure = process.env.IMAP_SECURE !== "false";
+
+    const clients: IMAPClient[] = [];
+
+    const user1 =
+      process.env.IMAP_USER_1 ||
+      process.env.IMAP_USER ||
+      process.env.SMTP_USER ||
+      "";
+    const pass1 =
+      process.env.IMAP_PASS_1 ||
+      process.env.IMAP_PASS ||
+      process.env.SMTP_PASS ||
+      "";
+    if (user1) {
+      clients.push(
+        new IMAPClient({
+          host,
+          port,
+          secure,
+          auth: { user: user1, pass: pass1 },
+        }),
+      );
+    }
+
+    const user2 = process.env.IMAP_USER_2 || process.env.SMTP_USER_2 || "";
+    const pass2 = process.env.IMAP_PASS_2 || process.env.SMTP_PASS_2 || "";
+    if (user2) {
+      clients.push(
+        new IMAPClient({
+          host,
+          port,
+          secure,
+          auth: { user: user2, pass: pass2 },
+        }),
+      );
+    }
+
+    if (clients.length === 0) {
+      // Fallback to legacy single client
+      return [IMAPClient.fromEnv()];
+    }
+
+    return clients;
   }
 
   async withConnection<T>(
