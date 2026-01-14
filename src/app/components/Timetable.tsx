@@ -29,6 +29,7 @@ type TimetableProps = {
   onToggleDone: (taskId: string, currentStatus: boolean) => void;
   onDeleteTask: (taskId: string) => void;
   onReschedule: (task: Task) => void;
+  onClickEmptySpace?: (time: string) => void;
 };
 
 const Timetable: React.FC<TimetableProps> = ({
@@ -38,6 +39,7 @@ const Timetable: React.FC<TimetableProps> = ({
   onToggleDone,
   onDeleteTask,
   onReschedule: onEdit,
+  onClickEmptySpace,
 }) => {
   const [menu, setMenu] = useState<{ x: number; y: number; task: Task | null }>(
     { x: 0, y: 0, task: null },
@@ -45,6 +47,7 @@ const Timetable: React.FC<TimetableProps> = ({
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(
     null,
   );
+  const timetableGridRef = React.useRef<HTMLDivElement>(null);
 
   const handleContextMenu = (e: React.MouseEvent, task: Task) => {
     if (task.is_external) {
@@ -80,6 +83,29 @@ const Timetable: React.FC<TimetableProps> = ({
   };
 
   const closeMenu = () => setMenu({ ...menu, task: null });
+
+  const handleGridClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!onClickEmptySpace || !timetableGridRef.current) return;
+
+    // Only handle clicks directly on the grid, not on tasks
+    if (e.target !== e.currentTarget) return;
+
+    const rect = timetableGridRef.current.getBoundingClientRect();
+    const clickY = e.clientY - rect.top;
+    const totalHeight = rect.height;
+
+    // Calculate the percentage position and convert to hours
+    const percentFromTop = clickY / totalHeight;
+    const totalMinutes = percentFromTop * 24 * 60;
+
+    // Round to nearest 15 minutes for better UX
+    const roundedMinutes = Math.round(totalMinutes / 15) * 15;
+    const hours = Math.floor(roundedMinutes / 60) % 24;
+    const minutes = roundedMinutes % 60;
+
+    const timeString = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    onClickEmptySpace(timeString);
+  };
 
   // Clean up timer on unmount
   useEffect(() => {
@@ -157,7 +183,7 @@ const Timetable: React.FC<TimetableProps> = ({
   const isToday = new Date().toDateString() === date.toDateString();
 
   return (
-    <div className="bg-card rounded-xl shadow-2xl p-4 relative border border-border">
+    <div className="bg-card rounded-xl shadow-2xl p-4 relative border border-border select-none cursor-default">
       <div className="absolute inset-0 bg-[radial-gradient(theme(colors.foreground)_/_0.5,transparent_0.5px)] [background-size:16px_16px] opacity-5"></div>
       <div className="relative h-[850px] overflow-y-auto pr-2 py-2">
         <div className="absolute top-3 bottom-3 w-16 text-right text-muted-foreground">
@@ -186,7 +212,11 @@ const Timetable: React.FC<TimetableProps> = ({
             />
           ))}
         </div>
-        <div className="relative h-full ml-16">
+        <div
+          ref={timetableGridRef}
+          className="relative h-full ml-16 md:cursor-default cursor-pointer"
+          onClick={handleGridClick}
+        >
           {settings.show_time_needle && isToday && (
             <TimeNeedle startHour={0} endHour={24} />
           )}
@@ -246,7 +276,7 @@ const Timetable: React.FC<TimetableProps> = ({
                   y: 0,
                 }}
                 transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                className={`absolute p-2 flex flex-col text-foreground cursor-pointer rounded-lg backdrop-blur-sm border border-border overflow-hidden ${
+                className={`absolute p-2 flex flex-col text-foreground md:cursor-default cursor-pointer rounded-lg backdrop-blur-sm border border-border overflow-hidden ${
                   duration < 60 ? "justify-center" : "justify-start"
                 }`}
                 style={{
