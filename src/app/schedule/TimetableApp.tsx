@@ -20,12 +20,14 @@ import {
   Calendar as CalendarIcon,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
-import { createBrowserClient } from "@supabase/ssr";
+import { createBrowserClient } from "@/lib/supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/components/theme-provider";
 import { Theme } from "@/lib/theme";
 import { PlazenLogo } from "@/components/plazen-logo";
 import ReactMarkdown from "react-markdown";
+import { DevModeMenu } from "@/app/components/DevModeMenu";
+import { isDevMode } from "@/lib/devMode";
 import "../globals.css";
 
 type Notification = {
@@ -601,6 +603,15 @@ export default function TimetableApp() {
                 </span>
               </div>
               <div className="flex items-center space-x-2">
+                {isDevMode() && (
+                  <DevModeMenu
+                    onRoutineTasksGenerated={() => {
+                      if (date) {
+                        fetchTasks(date);
+                      }
+                    }}
+                  />
+                )}
                 <Button
                   variant="ghost"
                   size="icon"
